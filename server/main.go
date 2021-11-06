@@ -1,11 +1,114 @@
 package main
 
-import "github.com/gin-gonic/gin"
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"os"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v4/pgxpool"
+	"golang.org/x/crypto/bcrypt"
+)
+
+const (
+	host     = "localhost"
+	port     = 5432
+	user     = "postgres"
+	password = "postgres"
+	dbname   = "go_graphql_todo_dev"
+)
 
 func main() {
+	pool := initDb()
+	defer pool.Close()
+
 	r := gin.Default()
-	r.GET("/", func(c *gin.Context) {
-		c.String(200, "Welcome to Go and Gin!")
+	r.Use(func(c *gin.Context) {
+		c.Set("pool", pool)
+		c.Next()
 	})
-	r.Run()
+
+	r.POST("/login", LoginHandler)
+	r.POST("/signup", SignupHandler)
+
+	var port string
+	if envVar := os.Getenv("PORT"); envVar != "" {
+		port = envVar
+	} else {
+		port = "8080"
+	}
+	r.Run(fmt.Sprintf(":%s", port))
+}
+
+func initDb() *pgxpool.Pool {
+	var databaseUrl string
+	if envVar := os.Getenv("DATABASE_URL"); envVar != "" {
+		databaseUrl = envVar
+	} else {
+		databaseUrl = fmt.Sprintf("host=%s port=%d user=%s "+
+			"password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+	}
+
+	pool, err := pgxpool.Connect(context.Background(), databaseUrl)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		os.Exit(1)
+	}
+	return pool
+}
+
+type SignUpRequest struct {
+	Password string `json:"password" db:"password"`
+	Username string `json:"username" db:"username"`
+	Email    string `json:"email" db:"email"`
+}
+
+// curl -X POST -H 'Content-Type: application/json' -d '{"email": "email", "username": "username", "password": "password"}' localhost:8080/signup
+func SignupHandler(c *gin.Context) {
+	signUpRequest := &SignUpRequest{}
+	err := c.ShouldBindJSON(signUpRequest)
+	if err != nil {
+		fmt.Println(err)
+		c.String(http.StatusBadRequest, "username, email, and password must be provided")
+		return
+	}
+
+	pool := c.MustGet("pool").(*pgxpool.Pool)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(signUpRequest.Password), 8)
+	if _, err := pool.Exec(context.Background(), "INSERT INTO users(username, email, password) VALUES ($1, $2, $3)", signUpRequest.Username, signUpRequest.Email, string(hashedPassword)); err != nil {
+		c.String(http.StatusInternalServerError, "Signup failed")
+		return
+	}
+	c.String(http.StatusOK, "Signup successful")
+}
+
+type Credentials struct {
+	Password string `json:"password" db:"password"`
+	Username string `json:"username" db:"username"`
+}
+
+// curl -X POST -H 'Content-Type: application/json' -d '{"username": "username", "password": "password"}' localhost:8080/login
+func LoginHandler(c *gin.Context) {
+	credentials := &Credentials{}
+	err := c.ShouldBindJSON(credentials)
+	if err != nil {
+		fmt.Println(err)
+		c.String(http.StatusBadRequest, "username and password must be provided")
+		return
+	}
+
+	pool := c.MustGet("pool").(*pgxpool.Pool)
+	storedCreds := &Credentials{}
+	err = pool.QueryRow(context.Background(), "SELECT username, password FROM users where username=$1;", credentials.Username).Scan(&storedCreds.Username, &storedCreds.Password)
+	if err != nil {
+		fmt.Println(err)
+		c.String(http.StatusInternalServerError, "Could not find user")
+		return
+	}
+	if err = bcrypt.CompareHashAndPassword([]byte(storedCreds.Password), []byte(credentials.Password)); err != nil {
+		c.String(http.StatusUnauthorized, "Unauthorized")
+		return
+	}
+	c.String(http.StatusOK, "User Logged In")
 }
