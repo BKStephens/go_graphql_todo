@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -19,15 +20,17 @@ type testSuite struct {
 	serverUrl string
 }
 
+var envVariables = map[string]string{
+	"JWT_SECRET_KEY": "secret",
+	"PORT":           "8081",
+	"DATABASE_URL":   "postgres://postgres:postgres@localhost:5432/go_graphql_todo_test",
+}
+
 func (suite *testSuite) SetupSuite() {
-	port := "8081"
-	os.Setenv("PORT", port)
-	defer os.Unsetenv("PORT")
-
-	os.Setenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/go_graphql_todo_test")
-	defer os.Unsetenv("DATABASE_URL")
-
-	suite.serverUrl = "http://localhost:" + port
+	for k, v := range envVariables {
+		os.Setenv(k, v)
+	}
+	suite.serverUrl = "http://localhost:" + envVariables["PORT"]
 	go Initialize()
 	for {
 		req, _ := http.NewRequest("GET", suite.serverUrl+"/health", nil)
@@ -35,6 +38,12 @@ func (suite *testSuite) SetupSuite() {
 		if err == nil && resp.StatusCode == 200 {
 			break
 		}
+	}
+}
+
+func (suite *testSuite) TearDownSuite() {
+	for k := range envVariables {
+		os.Unsetenv(k)
 	}
 }
 
@@ -133,8 +142,12 @@ func (suite *testSuite) TestPostLoginForUserThatExists() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	bodyString := string(bodyBytes)
-	assert.Equal(suite.T(), "User Logged In", bodyString)
+	type responseT struct {
+		Token string `json:"token"`
+	}
+	var response responseT
+	json.Unmarshal(bodyBytes, &response)
+	assert.NotNil(suite.T(), response.Token)
 }
 
 func (suite *testSuite) TestPostLoginForUserThatExistsButWrongPassword() {
@@ -181,6 +194,64 @@ func (suite *testSuite) TestPostLoginForUserThatDoesntExist() {
 	}
 	bodyString := string(bodyBytes)
 	assert.Equal(suite.T(), "Could not find user", bodyString)
+}
+
+func (suite *testSuite) TestAuthorizationLoggedIn() {
+	InsertUser(&SignUpRequest{Username: "testuser", Email: "testuser@example.com", Password: "password"}, DBPool)
+	reqBody := []byte(`{"username": "testuser", "password": "password"}`)
+	req, err := http.NewRequest("POST", suite.serverUrl+"/login", bytes.NewBuffer(reqBody))
+	if err != nil {
+		suite.T().Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		suite.T().Fatal(err)
+	}
+	defer resp.Body.Close()
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	type responseT struct {
+		Token string `json:"token"`
+	}
+	var response responseT
+	json.Unmarshal(bodyBytes, &response)
+
+	req, err = http.NewRequest("GET", suite.serverUrl+"/api/v1/authorized", nil)
+	if err != nil {
+		suite.T().Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+response.Token)
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		suite.T().Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	assert.Equal(suite.T(), 200, resp.StatusCode)
+	bodyBytes, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	bodyString := string(bodyBytes)
+	assert.Equal(suite.T(), "Reached authenticated endpoint", bodyString)
+}
+
+func (suite *testSuite) TestAuthorizationNoAuthorizatonToken() {
+	req, err := http.NewRequest("GET", suite.serverUrl+"/api/v1/authorized", nil)
+	if err != nil {
+		suite.T().Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		suite.T().Fatal(err)
+	}
+	defer resp.Body.Close()
+	assert.Equal(suite.T(), 401, resp.StatusCode)
 }
 
 func TestSuite(t *testing.T) {

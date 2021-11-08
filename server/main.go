@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/bkstephens/go_graphql_todo/server/middleware"
+	"github.com/bkstephens/go_graphql_todo/server/service"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"golang.org/x/crypto/bcrypt"
@@ -29,7 +31,6 @@ func Initialize() {
 	pool := initDb()
 	DBPool = pool
 	defer pool.Close()
-
 	r := gin.Default()
 	r.Use(func(c *gin.Context) {
 		c.Set("pool", pool)
@@ -41,6 +42,11 @@ func Initialize() {
 	})
 	r.POST("/login", LoginHandler)
 	r.POST("/signup", SignupHandler)
+	authorized := r.Group("/api/v1")
+	authorized.Use(middleware.AuthorizeJWT())
+	authorized.GET("/authorized", func(c *gin.Context) {
+		c.String(http.StatusOK, "Reached authenticated endpoint")
+	})
 
 	var port string
 	if envVar := os.Getenv("PORT"); envVar != "" {
@@ -126,5 +132,8 @@ func LoginHandler(c *gin.Context) {
 		c.String(http.StatusUnauthorized, "Unauthorized")
 		return
 	}
-	c.String(http.StatusOK, "User Logged In")
+	jwtService := service.JWTAuthService()
+	token := jwtService.GenerateToken(credentials.Username)
+
+	c.JSON(http.StatusOK, gin.H{"token": token})
 }

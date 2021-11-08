@@ -25,3 +25,9 @@ Rollback migration:
 ```
 ~/go/bin/tern migrate -d=-1 -c server/db/tern.conf -m server/db/migrations
 ```
+
+## Run server
+
+```
+JWT_SECRET_KEY=secret go run ./server
+```

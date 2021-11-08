@@ -3,15 +3,21 @@ module github.com/bkstephens/go_graphql_todo
 go 1.17
 
 require (
+	github.com/gin-gonic/gin v1.7.4
+	github.com/jackc/pgx/v4 v4.13.0
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+)
+
+require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
-	github.com/gin-gonic/gin v1.7.4 // indirect
 	github.com/go-playground/locales v0.13.0 // indirect
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-playground/validator/v10 v10.4.1 // indirect
+	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
@@ -25,7 +31,6 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/jackc/pgtype v1.8.1 // indirect
 	github.com/jackc/pgx v3.6.2+incompatible // indirect
-	github.com/jackc/pgx/v4 v4.13.0 // indirect
 	github.com/jackc/puddle v1.1.3 // indirect
 	github.com/jackc/tern v1.12.5 // indirect
 	github.com/json-iterator/go v1.1.11 // indirect
@@ -43,7 +48,6 @@ require (
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
 	github.com/vaughan0/go-ini v0.0.0-20130923145212-a98ad7ee00ec // indirect
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/sys v0.0.0-20211106132015-ebca88c72f68 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
