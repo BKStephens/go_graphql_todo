@@ -19,8 +19,15 @@ const (
 	dbname   = "go_graphql_todo_dev"
 )
 
+var DBPool *pgxpool.Pool
+
 func main() {
+	Initialize()
+}
+
+func Initialize() {
 	pool := initDb()
+	DBPool = pool
 	defer pool.Close()
 
 	r := gin.Default()
@@ -29,6 +36,9 @@ func main() {
 		c.Next()
 	})
 
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "UP"})
+	})
 	r.POST("/login", LoginHandler)
 	r.POST("/signup", SignupHandler)
 
@@ -64,7 +74,6 @@ type SignUpRequest struct {
 	Email    string `json:"email" db:"email"`
 }
 
-// curl -X POST -H 'Content-Type: application/json' -d '{"email": "email", "username": "username", "password": "password"}' localhost:8080/signup
 func SignupHandler(c *gin.Context) {
 	signUpRequest := &SignUpRequest{}
 	err := c.ShouldBindJSON(signUpRequest)
@@ -75,12 +84,20 @@ func SignupHandler(c *gin.Context) {
 	}
 
 	pool := c.MustGet("pool").(*pgxpool.Pool)
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(signUpRequest.Password), 8)
-	if _, err := pool.Exec(context.Background(), "INSERT INTO users(username, email, password) VALUES ($1, $2, $3)", signUpRequest.Username, signUpRequest.Email, string(hashedPassword)); err != nil {
+	err = InsertUser(signUpRequest, pool)
+	if err != nil {
 		c.String(http.StatusInternalServerError, "Signup failed")
 		return
 	}
 	c.String(http.StatusOK, "Signup successful")
+}
+
+func InsertUser(signUpRequest *SignUpRequest, pool *pgxpool.Pool) error {
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(signUpRequest.Password), 8)
+	if _, err := pool.Exec(context.Background(), "INSERT INTO users(username, email, password) VALUES ($1, $2, $3)", signUpRequest.Username, signUpRequest.Email, string(hashedPassword)); err != nil {
+		return err
+	}
+	return nil
 }
 
 type Credentials struct {
@@ -88,7 +105,6 @@ type Credentials struct {
 	Username string `json:"username" db:"username"`
 }
 
-// curl -X POST -H 'Content-Type: application/json' -d '{"username": "username", "password": "password"}' localhost:8080/login
 func LoginHandler(c *gin.Context) {
 	credentials := &Credentials{}
 	err := c.ShouldBindJSON(credentials)
