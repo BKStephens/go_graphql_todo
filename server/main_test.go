@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/bkstephens/go_graphql_todo/server/service"
+	"github.com/bkstephens/go_graphql_todo/server/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -98,7 +100,7 @@ func (suite *testSuite) TestPostSignupWithRequiredFields() {
 }
 
 func (suite *testSuite) TestPostSignupForUserThatExits() {
-	InsertUser(&SignUpRequest{Username: "testuser", Email: "testuser@example.com", Password: "password"}, DBPool)
+	service.InsertUser(types.InsertUserParams{Username: "testuser", Email: "testuser@example.com", Password: "password"}, DBPool)
 
 	reqBody := []byte(`{"username": "testuser", "email": "testuser@example.com", "password": "password"}`)
 	req, err := http.NewRequest("POST", suite.serverUrl+"/signup", bytes.NewBuffer(reqBody))
@@ -123,7 +125,7 @@ func (suite *testSuite) TestPostSignupForUserThatExits() {
 }
 
 func (suite *testSuite) TestPostLoginForUserThatExists() {
-	InsertUser(&SignUpRequest{Username: "testuser", Email: "testuser@example.com", Password: "password"}, DBPool)
+	service.InsertUser(types.InsertUserParams{Username: "testuser", Email: "testuser@example.com", Password: "password"}, DBPool)
 
 	reqBody := []byte(`{"username": "testuser", "password": "password"}`)
 	req, err := http.NewRequest("POST", suite.serverUrl+"/login", bytes.NewBuffer(reqBody))
@@ -151,7 +153,7 @@ func (suite *testSuite) TestPostLoginForUserThatExists() {
 }
 
 func (suite *testSuite) TestPostLoginForUserThatExistsButWrongPassword() {
-	InsertUser(&SignUpRequest{Username: "testuser", Email: "testuser@example.com", Password: "password"}, DBPool)
+	service.InsertUser(types.InsertUserParams{Username: "testuser", Email: "testuser@example.com", Password: "password"}, DBPool)
 
 	reqBody := []byte(`{"username": "testuser", "password": "letmein"}`)
 	req, err := http.NewRequest("POST", suite.serverUrl+"/login", bytes.NewBuffer(reqBody))
@@ -197,7 +199,7 @@ func (suite *testSuite) TestPostLoginForUserThatDoesntExist() {
 }
 
 func (suite *testSuite) TestAuthorizationLoggedIn() {
-	InsertUser(&SignUpRequest{Username: "testuser", Email: "testuser@example.com", Password: "password"}, DBPool)
+	service.InsertUser(types.InsertUserParams{Username: "testuser", Email: "testuser@example.com", Password: "password"}, DBPool)
 	reqBody := []byte(`{"username": "testuser", "password": "password"}`)
 	req, err := http.NewRequest("POST", suite.serverUrl+"/login", bytes.NewBuffer(reqBody))
 	if err != nil {
