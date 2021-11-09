@@ -12,6 +12,7 @@ import (
 )
 
 type Credentials struct {
+	Id       int    `json:"id" db:"id"`
 	Password string `json:"password" db:"password"`
 	Username string `json:"username" db:"username"`
 }
@@ -27,7 +28,7 @@ func LoginHandler(c *gin.Context) {
 
 	pool := c.MustGet("pool").(*pgxpool.Pool)
 	storedCreds := &Credentials{}
-	err = pool.QueryRow(context.Background(), "SELECT username, password FROM users where username=$1;", credentials.Username).Scan(&storedCreds.Username, &storedCreds.Password)
+	err = pool.QueryRow(context.Background(), "SELECT id, username, password FROM users where username=$1;", credentials.Username).Scan(&storedCreds.Id, &storedCreds.Username, &storedCreds.Password)
 	if err != nil {
 		fmt.Println(err)
 		c.String(http.StatusInternalServerError, "Could not find user")
@@ -38,7 +39,7 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 	jwtService := service.JWTAuthService()
-	token := jwtService.GenerateToken(credentials.Username)
+	token := jwtService.GenerateToken(storedCreds.Id)
 
 	c.JSON(http.StatusOK, gin.H{"token": token})
 }

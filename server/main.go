@@ -41,6 +41,7 @@ func Initialize() {
 	})
 	r.POST("/login", controller.LoginHandler)
 	r.POST("/signup", controller.SignupHandler)
+	r.GET("/graphql", middleware.AuthorizeJWT(), controller.GraphQLHandler)
 	authorized := r.Group("/api/v1")
 	authorized.Use(middleware.AuthorizeJWT())
 	authorized.GET("/authorized", func(c *gin.Context) {

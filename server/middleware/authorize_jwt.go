@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/bkstephens/go_graphql_todo/server/service"
@@ -18,7 +17,7 @@ func AuthorizeJWT() gin.HandlerFunc {
 			token, _ := service.JWTAuthService().ValidateToken(tokenString)
 			if token.Valid {
 				claims := token.Claims.(jwt.MapClaims)
-				fmt.Println(claims)
+				c.Set("userId", claims["userId"])
 				return
 			}
 		}

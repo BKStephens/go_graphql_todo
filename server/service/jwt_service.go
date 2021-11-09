@@ -9,11 +9,11 @@ import (
 )
 
 type JWTService interface {
-	GenerateToken(email string) string
+	GenerateToken(userId int) string
 	ValidateToken(token string) (*jwt.Token, error)
 }
 type authCustomClaims struct {
-	Name string `json:"name"`
+	UserId int `json:"userId"`
 	jwt.StandardClaims
 }
 
@@ -34,9 +34,9 @@ func getSecretKey() string {
 	panic("Required JWT_SECRET_KEY environment variable not set")
 }
 
-func (service *jwtServices) GenerateToken(email string) string {
+func (service *jwtServices) GenerateToken(userId int) string {
 	claims := &authCustomClaims{
-		email,
+		userId,
 		jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(time.Hour * 48).Unix(),
 			IssuedAt:  time.Now().Unix(),

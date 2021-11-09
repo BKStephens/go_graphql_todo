@@ -8,10 +8,12 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func InsertUser(params types.InsertUserParams, pool *pgxpool.Pool) error {
+func InsertUser(params types.InsertUserParams, pool *pgxpool.Pool) (int, error) {
+	var userId int
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(params.Password), 8)
-	if _, err := pool.Exec(context.Background(), "INSERT INTO users(username, email, password) VALUES ($1, $2, $3)", params.Username, params.Email, string(hashedPassword)); err != nil {
-		return err
+	err := pool.QueryRow(context.Background(), "INSERT INTO users(username, email, password) VALUES ($1, $2, $3) RETURNING id;", params.Username, params.Email, string(hashedPassword)).Scan(&userId)
+	if err != nil {
+		return 0, err
 	}
-	return nil
+	return userId, nil
 }
