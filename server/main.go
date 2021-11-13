@@ -8,6 +8,7 @@ import (
 
 	"github.com/bkstephens/go_graphql_todo/server/controller"
 	"github.com/bkstephens/go_graphql_todo/server/middleware"
+	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -31,6 +32,19 @@ func Initialize() {
 	DBPool = pool
 	defer pool.Close()
 	r := gin.Default()
+	r.Use(gin.Recovery())
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, ResponseType, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
 	r.Use(func(c *gin.Context) {
 		c.Set("pool", pool)
 		c.Next()
@@ -46,6 +60,11 @@ func Initialize() {
 	authorized.Use(middleware.AuthorizeJWT())
 	authorized.GET("/authorized", func(c *gin.Context) {
 		c.String(http.StatusOK, "Reached authenticated endpoint")
+	})
+	// Serve frontend static files
+	r.Use(static.Serve("/", static.LocalFile("./client/build", true)))
+	r.NoRoute(func(c *gin.Context) {
+		c.File("./client/build")
 	})
 
 	var port string
