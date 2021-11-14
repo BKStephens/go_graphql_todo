@@ -15,15 +15,15 @@ createdb go_graphql_todo_test
 
 Migrate databases:
 ```
-APP_ENV="dev" ~/go/bin/tern migrate -c server/db/tern.conf -m server/db/migrations
-APP_ENV="test" ~/go/bin/tern migrate -c server/db/tern.conf -m server/db/migrations
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/go_graphql_todo_dev go run server/cmd/migrate/migrate.go
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/go_graphql_todo_test go run server/cmd/migrate/migrate.go
 ```
 
 ## Commands
 
 Rollback migration:
 ```
-~/go/bin/tern migrate -d=-1 -c server/db/tern.conf -m server/db/migrations
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/go_graphql_todo_dev go run server/cmd/migrate_rollback/migrate_rollback.go
 ```
 
 ## Run tests
